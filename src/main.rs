@@ -3,10 +3,7 @@ use crossterm::{
     execute,
     style::Print,
 };
-use std::{
-    io::{self, Read},
-    ops::AddAssign,
-};
+use std::io::{self, Read};
 
 struct Coordinate {
     x: usize,
@@ -57,16 +54,32 @@ fn main() {
                 }
                 match event.code {
                     KeyCode::Esc => break,
-                    KeyCode::Left => {
+                    KeyCode::Char('h') => {
                         player_movement.x -= 1;
                     }
-                    KeyCode::Right => {
+                    KeyCode::Char('l') => {
                         player_movement.x += 1;
-                    } // 複数キーの入力検知にはEventStreamが使える？
-                    KeyCode::Up => {
+                    }
+                    KeyCode::Char('k') => {
                         player_movement.y -= 1;
                     }
-                    KeyCode::Down => {
+                    KeyCode::Char('j') => {
+                        player_movement.y += 1;
+                    }
+                    KeyCode::Char('y') => {
+                        player_movement.x -= 1;
+                        player_movement.y -= 1;
+                    }
+                    KeyCode::Char('u') => {
+                        player_movement.x += 1;
+                        player_movement.y -= 1;
+                    },
+                    KeyCode::Char('b') => {
+                        player_movement.x -= 1;
+                        player_movement.y += 1;
+                    }
+                    KeyCode::Char('n') => {
+                        player_movement.x += 1;
                         player_movement.y += 1;
                     }
                     _ => (),
