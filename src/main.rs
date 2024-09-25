@@ -62,26 +62,30 @@ fn pause_for_input() {
 }
 
 fn gen_rand_points_in_area(
-    min_points_num: Option<usize>,
     from_x: usize,
     from_y: usize,
     width: usize,
     height: usize,
+    min_points_num: Option<usize>,
+    max_points_num: Option<usize>,
 ) -> Vec<Coordinate> {
     //! from_x <= x <= from_x + height、from_y <= y <= from_y + height
     //! from_x <= x <= from_x + height、from_y <= y <= from_y + height
     //! の範囲で 重複なく必要座標数分ランダムな座標のVecを生成する。
     //! 実装：領域の全ての座標を一つのVecに格納してシャッフル、必要な座標の数だけ取り出す。
+    //! TODO: use max_points_num
     let mut rng = rand::thread_rng();
     let points_num = if let Some(min_points_num) = min_points_num {
-        if min_points_num > width * height { panic!("points overflows area size") };
+        if min_points_num > width * height {
+            panic!("points overflows area size")
+        };
         min_points_num
     } else {
         rng.gen_range(0..width * height)
     };
     let mut points: Vec<Coordinate> = Vec::new();
-    for y in from_y..from_y+height {
-        for x in from_x..from_x+width {
+    for y in from_y..from_y + height {
+        for x in from_x..from_x + width {
             points.push(Coordinate { x: x, y: y });
         }
     }
@@ -95,19 +99,16 @@ mod tests {
     use super::*;
     #[test]
     fn test_random_points_in_area_valid_points_num() {
-        assert_eq!(6, gen_rand_points_in_area(Some(6), 0, 0, 6, 6).len());
-        // assert_eq!(0, gen_rand_points_in_area(0, 0, 0, 0, 0).len());
+        assert_eq!(6, gen_rand_points_in_area(0, 0, 6, 6, Some(6), None).len());
     }
     #[test]
     fn test_random_points_in_points_fullfil_area() {
-        // let mut rng = rand::thread_rng();
-        // rng.gen_range(15..0);
-        assert_eq!(9, gen_rand_points_in_area(Some(9), 0, 0, 3, 3).len());
+        assert_eq!(9, gen_rand_points_in_area(0, 0, 3, 3, Some(9), None).len());
     }
     #[test]
     #[should_panic]
     fn test_random_points_in_area_points_num_overflows_area_size() {
-        gen_rand_points_in_area(Some(6), 0, 0, 2, 2).len();
+        gen_rand_points_in_area(0, 0, 2, 2, Some(6), None).len();
     }
 }
 
@@ -125,7 +126,7 @@ fn main() {
     let mut mob_list: Vec<Mob> = Vec::new();
     let mut rng = rand::thread_rng();
     let enemy_coordinates =
-        gen_rand_points_in_area(None, 0, 0, dungeon_floor.width, dungeon_floor.height);
+        gen_rand_points_in_area(0, 0, dungeon_floor.width, dungeon_floor.height, None, None);
     for coordinates in enemy_coordinates {
         mob_list.push(Mob {
             tag: String::from("enemy"),
