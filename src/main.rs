@@ -5,9 +5,8 @@ use crossterm::{
     style::Print,
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rand::{rngs::ThreadRng, Rng};
+use rand::{rngs::ThreadRng, seq::SliceRandom, Rng};
 use std::io::{self, Read, Write};
-use thiserror::Error;
 
 struct Coordinate {
     x: usize,
@@ -71,71 +70,23 @@ fn gen_rand_points_in_area(
 ) -> Vec<Coordinate> {
     //! from_x <= x <= from_x + height、from_y <= y <= from_y + height
     //! from_x <= x <= from_x + height、from_y <= y <= from_y + height
-    //! の座標平面上の矩形において、y=from_y..heightを各rowに分割し、それぞれの列に対し
-    //! 合計すると必要座標数をを満たすようにランダムで座標数を配分する。
-    //! 配分する座標数how_many_point_each_rowの決め方
-    //! 000
-    //! 000
-    //! 000 のような矩形を例にする。
-    //! min_points_numを8とする
-    //! r=0で010の時残りmin_points_numは7 次の列以降の座標空き数は6 このとき 残りmin_points_num <= 座標空き数を満たさないから、r=0の施行をやり直す。
-    //! ここで、次回の施行は座標空き数-残りmin_points_numをhow_many_points_in_rowの最小値とする。
-    //! how_many_points_in_row==widthとなるなら、乱数生成をスキップして直接how_many_points_in_row=widthとする。
-    //! min_points_numを3とする。
-    //! r=0で000の時 「残りmin_points_num」=min_points_num-points.len() は3 次の列以降の座標空き数は6 このとき 残りmin_points_num <= 座標空き数を満たすから、r=1へ
-    //! r=1で011の時残りmin_points_numは1 次の列以降の座標空き数は3 このとき 残りmin_points_num <= 座標空き数を満たすから、r=2へ
-    //! r=2で111の時残りmin_points_numは-2 残りmin_points_num >= 0を満たさないから、how_many_points_in_rowはmin_points_num-points.len()を割り当てる
-    let mut rng: ThreadRng;
-    let mut points = Vec::new();
-    let min_points_num = if let Some(num) = min_points_num {
-        num
+    //! の範囲で 重複なく必要座標数分ランダムな座標のVecを生成する。
+    //! 実装：領域の全ての座標を一つのVecに格納してシャッフル、必要な座標の数だけ取り出す。
+    let mut rng = rand::thread_rng();
+    let points_num = if let Some(min_points_num) = min_points_num {
+        if min_points_num > width * height { panic!("points overflows area size") };
+        min_points_num
     } else {
-        rng = rand::thread_rng();
         rng.gen_range(0..width * height)
     };
-    if min_points_num > width * height {
-        panic!("The given number of points overflows the area size.");
-    } else if min_points_num != 0 {
-        rng = rand::thread_rng();
-        'generate_points: for row in 0..height {
-            let mut how_many_points_in_row;
-            let mut min_how_many_points_in_row = 0;
-            loop {
-                let avaliable_points_left_from_next_row = width * (height - (row + 1));
-                if min_how_many_points_in_row == width {
-                    how_many_points_in_row = width;
-                } else {
-                    how_many_points_in_row = rng.gen_range(min_how_many_points_in_row..=width);
-                }
-                dbg!(
-                    min_points_num,
-                    points.len(),
-                    how_many_points_in_row,
-                    avaliable_points_left_from_next_row
-                );
-                let remaining_unset_points = if let Some(result) =
-                    min_points_num.checked_sub(points.len() + how_many_points_in_row)
-                {
-                    result
-                } else {
-                    min_points_num - points.len()
-                };
-                if remaining_unset_points <= avaliable_points_left_from_next_row {
-                    break;
-                } else {
-                    min_how_many_points_in_row = width;
-                }
-            }
-            for _ in 0..how_many_points_in_row {
-                let x = rng.gen_range(from_x..from_x + width);
-                let y = from_y + row;
-                points.push(Coordinate { x, y });
-                if points.len() == min_points_num {
-                    break 'generate_points;
-                }
-            }
+    let mut points: Vec<Coordinate> = Vec::new();
+    for y in from_y..from_y+height {
+        for x in from_x..from_x+width {
+            points.push(Coordinate { x: x, y: y });
         }
     }
+    points.shuffle(&mut rng);
+    points.truncate(points_num);
     points
 }
 
@@ -173,13 +124,8 @@ fn main() {
     };
     let mut mob_list: Vec<Mob> = Vec::new();
     let mut rng = rand::thread_rng();
-    let enemy_coordinates = gen_rand_points_in_area(
-        None,
-        0,
-        0,
-        dungeon_floor.width,
-        dungeon_floor.height,
-    );
+    let enemy_coordinates =
+        gen_rand_points_in_area(None, 0, 0, dungeon_floor.width, dungeon_floor.height);
     for coordinates in enemy_coordinates {
         mob_list.push(Mob {
             tag: String::from("enemy"),
