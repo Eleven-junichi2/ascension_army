@@ -1,5 +1,5 @@
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, MoveTo, MoveToRow, Show},
     event::{read, Event, KeyCode, KeyEventKind},
     execute, queue,
     style::Print,
@@ -281,9 +281,13 @@ fn main() {
         queue!(stdout, Clear(ClearType::All)).unwrap();
         queue!(stdout, MoveTo(0, 0), Print("left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n")).unwrap();
         for (y, row) in map_display.iter().enumerate() {
+            queue!(stdout, MoveTo(0, y as u16 + 1)).unwrap();
+            let mut row_string = String::new();
             for (x, cell) in row.iter().enumerate() {
-                queue!(stdout, MoveTo(x as u16, y as u16 + 1), Print(cell)).unwrap();
+                row_string.push(*cell);
+                row_string.push(' ');
             }
+            queue!(stdout, Print(row_string)).unwrap();
         }
         stdout.flush().unwrap();
     }
