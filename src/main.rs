@@ -5,11 +5,8 @@ use crossterm::{
     style::Print,
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rand::{rngs::ThreadRng, seq::SliceRandom, Rng};
-use std::{
-    io::{self, Read, Write},
-    ops::Mul,
-};
+use rand::{seq::SliceRandom, Rng};
+use std::io::{self, Read, Write};
 
 struct Coordinate {
     x: usize,
