@@ -1,5 +1,5 @@
 use crossterm::{
-    cursor::{Hide, MoveTo, MoveToRow, Show},
+    cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode, KeyEventKind},
     execute, queue,
     style::Print,
@@ -8,6 +8,7 @@ use crossterm::{
 use rand::{seq::SliceRandom, Rng};
 use std::io::{self, Read, Write};
 
+#[derive(Debug, PartialEq)]
 struct Coordinate {
     x: usize,
     y: usize,
@@ -22,6 +23,18 @@ struct Mob {
     pos: Coordinate,
     strength: u8,
     hp: u8,
+}
+
+impl Mob {
+    fn calc_combat(&self, other: &Mob) -> bool {
+        //! Return true if this mob wins the combat, false otherwise.
+        let mut rng = rand::thread_rng();
+        let result = rng.gen_ratio(
+            self.strength as u32,
+            (self.strength + other.strength) as u32,
+        );
+        result
+    }
 }
 
 struct Vec2d {
@@ -48,12 +61,22 @@ impl DungeonFloor {
         }
         maskmap
     }
-    fn mob_maskmap(&self) -> Vec<Vec<bool>> {
-        let mut maskmap = vec![vec![false; self.height]; self.height];
+    fn mob_maskmap(&self, tags: &[&str]) -> Vec<Vec<bool>> {
+        let mut map = vec![vec![false; self.height]; self.height];
         for mob in &self.mobs {
-            maskmap[mob.pos.y][mob.pos.x] = true;
+            if tags.contains(&&mob.tag.as_str()) {
+                map[mob.pos.y][mob.pos.y] = true;
+            }
         }
-        maskmap
+        map
+    }
+    fn mob_index_by_tag(&self, tag: &str) -> Option<usize> {
+        for i in 0..self.mobs.len() {
+            if self.mobs[i].tag == tag {
+                return Some(i);
+            }
+        }
+        None
     }
 }
 
@@ -77,6 +100,8 @@ fn gen_rand_points_in_area(
     //! width * height - how_many_generate < exclusive_points.len()ならpanic!
     //! exclusive_pointsの実装
     //! pointsからexclusive_pointsの座標を除外すればよい
+    //! # Panics
+    //! If `width * height - how_many_generate < exclusive_points.len()` or `how_many_generate > width * height`.
     let mut rng = rand::thread_rng();
     let points_num = if let Some(how_many_generate) = how_many_generate {
         if width * height - how_many_generate < exclusive_points.len() {
@@ -184,7 +209,7 @@ fn main() {
     execute!(stdout, Hide, EnterAlternateScreen).unwrap();
     'game: loop {
         let event = read().unwrap();
-        let enemy_map = dungeon_floor.mob_maskmap();
+        // let mut enemy_map = dungeon_floor.mut_mob_map(&["enemy"]);
         match event {
             Event::Key(event) => {
                 if event.kind == KeyEventKind::Press {
@@ -233,33 +258,46 @@ fn main() {
                         _ => (),
                     }
                 }
-                for mob in &mut dungeon_floor.mobs {
-                    if mob.tag == "player" {
-                        let new_x =
-                            if let Some(new_x) = mob.pos.x.checked_add_signed(player_movement.x) {
-                                if new_x > dungeon_floor.width - 1 {
-                                    dungeon_floor.width - 1
-                                } else {
-                                    new_x
-                                }
+                if let Some(player) = dungeon_floor.mob_index_by_tag("player") {
+                    let (player_mobs, other_mobs) = dungeon_floor.mobs.split_at_mut(player);
+                    let player = &mut player_mobs[0];
+                    let mut new_x =
+                        if let Some(new_x) = player.pos.x.checked_add_signed(player_movement.x) {
+                            if new_x > dungeon_floor.width - 1 {
+                                dungeon_floor.width - 1
                             } else {
-                                mob.pos.x
-                            };
-                        let new_y =
-                            if let Some(new_y) = mob.pos.y.checked_add_signed(player_movement.y) {
-                                if new_y > dungeon_floor.height - 1 {
-                                    dungeon_floor.height - 1
-                                } else {
-                                    new_y
-                                }
+                                new_x
+                            }
+                        } else {
+                            player.pos.x
+                        };
+                    let mut new_y =
+                        if let Some(new_y) = player.pos.y.checked_add_signed(player_movement.y) {
+                            if new_y > dungeon_floor.height - 1 {
+                                dungeon_floor.height - 1
                             } else {
-                                mob.pos.y
-                            };
-                        if !enemy_map[new_y][new_x] {
-                            mob.pos.y = new_y;
-                            mob.pos.x = new_x;
+                                new_y
+                            }
+                        } else {
+                            player.pos.y
+                        };
+                    for mob in other_mobs {
+                        if mob.tag == "enemy" {
+                            if mob.pos.x == new_x && mob.pos.y == new_y {
+                                if player.calc_combat(mob) {
+                                    mob.hp -= 1;
+                                } else {
+                                    player.hp -= 1;
+                                }
+                                if mob.hp > 0 {
+                                    new_x = player.pos.x;
+                                    new_y = player.pos.y;
+                                }
+                            }
                         }
                     }
+                    player.pos.x = new_x;
+                    player.pos.y = new_y;
                 }
             }
             _ => (),
@@ -267,23 +305,46 @@ fn main() {
         player_movement.x = 0;
         player_movement.y = 0;
         let mut map_display = vec![vec!['.'; dungeon_floor.width]; dungeon_floor.height];
-        for mob in &dungeon_floor.mobs {
-            match mob.tag.as_str() {
-                "enemy" => {
-                    map_display[mob.pos.y][mob.pos.x] = 'E';
+        queue!(stdout, Clear(ClearType::All)).unwrap();
+        let mut dead = vec![];
+        for (i, mob) in dungeon_floor.mobs.iter().enumerate() {
+            if mob.hp == 0 {
+                dead.push(i);
+            } else {
+                match mob.tag.as_str() {
+                    "enemy" => {
+                        map_display[mob.pos.y][mob.pos.x] = 'E';
+                    }
+                    "player" => {
+                        map_display[mob.pos.y][mob.pos.x] = '@';
+                        queue!(
+                            stdout,
+                            MoveTo(0, 1),
+                            Print(format!(
+                                "Player: hp={} pos=({},{})",
+                                mob.hp, mob.pos.x, mob.pos.y
+                            ))
+                        )
+                        .unwrap();
+                    }
+                    _ => (),
                 }
-                "player" => {
-                    map_display[mob.pos.y][mob.pos.x] = '@';
-                }
-                _ => (),
             }
         }
-        queue!(stdout, Clear(ClearType::All)).unwrap();
+        for i in dead.iter() {
+            dungeon_floor.mobs.remove(*i);
+        }
         queue!(stdout, MoveTo(0, 0), Print("left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n")).unwrap();
+        let offset_x_to_display = 0;
+        let offset_y_to_display = 2;
         for (y, row) in map_display.iter().enumerate() {
-            queue!(stdout, MoveTo(0, y as u16 + 1)).unwrap();
+            queue!(
+                stdout,
+                MoveTo(offset_x_to_display, y as u16 + offset_y_to_display)
+            )
+            .unwrap();
             let mut row_string = String::new();
-            for (x, cell) in row.iter().enumerate() {
+            for cell in row.iter() {
                 row_string.push(*cell);
                 row_string.push(' ');
             }
