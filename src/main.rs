@@ -163,6 +163,7 @@ fn main() {
     let mut stdout = io::stdout();
     println!("Ascension Army");
     println!("Created by elprebit");
+    execute!(stdout, Print("- Press any key to start -")).unwrap();
     pause_for_input();
     let mut dungeon_floor = DungeonFloor {
         height: 16,
