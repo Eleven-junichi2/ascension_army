@@ -93,30 +93,32 @@ mod tests {
 const GAME_NAME: &str = "Ascension Army";
 
 fn main() {
-    let mut stdout = io::stdout();
-    queue!(stdout, Hide, EnterAlternateScreen).unwrap();
-    let (terminal_width, terminal_height) = terminal::size().unwrap();
-    queue!(
-        stdout,
-        MoveTo(
-            terminal_width / 2 - (GAME_NAME.len() / 2) as u16,
-            terminal_height / 2 - 1
-        ),
-        Print("Ascension Army\n")
-    )
-    .unwrap();
-    let show_how_to_start = "- Press any key to start -";
-    queue!(
-        stdout,
-        MoveTo(
-            terminal_width / 2 - (show_how_to_start.len() / 2) as u16,
-            terminal_height / 2
-        ),
-        Print(show_how_to_start)
-    )
-    .unwrap();
-    stdout.flush().unwrap();
-    pause_for_input();
+    // let mut stdout = io::stdout();
+
+
+    // queue!(stdout, Hide, EnterAlternateScreen).unwrap();
+    // let (terminal_width, terminal_height) = terminal::size().unwrap();
+    // queue!(
+    //     stdout,
+    //     MoveTo(
+    //         terminal_width / 2 - (GAME_NAME.len() / 2) as u16,
+    //         terminal_height / 2 - 1
+    //     ),
+    //     Print("Ascension Army\n")
+    // )
+    // .unwrap();
+    // let show_how_to_start = "- Press any key to start -";
+    // queue!(
+    //     stdout,
+    //     MoveTo(
+    //         terminal_width / 2 - (show_how_to_start.len() / 2) as u16,
+    //         terminal_height / 2
+    //     ),
+    //     Print(show_how_to_start)
+    // )
+    // .unwrap();
+    // stdout.flush().unwrap();
+    // pause_for_input();
     let mut dungeon_floor = DungeonFloor {
         height: 32,
         width: 32,
@@ -256,7 +258,7 @@ fn main() {
         player_movement.x = 0;
         player_movement.y = 0;
         let mut map_display = vec![vec!['.'; dungeon_floor.width]; dungeon_floor.height];
-        queue!(stdout, Clear(ClearType::All)).unwrap();
+        // queue!(stdout, Clear(ClearType::All)).unwrap();
         let mut dead = vec![];
         for (i, mob) in dungeon_floor.mobs.iter().enumerate() {
             if mob.hp == 0 {
@@ -268,15 +270,15 @@ fn main() {
                     }
                     "player" => {
                         map_display[mob.pos.y][mob.pos.x] = '@';
-                        queue!(
-                            stdout,
-                            MoveTo(0, 1),
-                            Print(format!(
-                                "Player: hp={} pos=({},{})",
-                                mob.hp, mob.pos.x, mob.pos.y
-                            ))
-                        )
-                        .unwrap();
+                        // queue!(
+                        //     stdout,
+                        //     MoveTo(0, 1),
+                        //     Print(format!(
+                        //         "Player: hp={} pos=({},{})",
+                        //         mob.hp, mob.pos.x, mob.pos.y
+                        //     ))
+                        // )
+                        // .unwrap();
                     }
                     _ => (),
                 }
@@ -285,23 +287,23 @@ fn main() {
         for i in dead.iter() {
             dungeon_floor.mobs.remove(*i);
         }
-        queue!(stdout, MoveTo(0, 0), Print("left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n")).unwrap();
+        // queue!(stdout, MoveTo(0, 0), Print("left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n")).unwrap();
         let offset_x_to_display = 0;
         let offset_y_to_display = 2;
-        for (y, row) in map_display.iter().enumerate() {
-            queue!(
-                stdout,
-                MoveTo(offset_x_to_display, y as u16 + offset_y_to_display)
-            )
-            .unwrap();
-            let mut row_string = String::new();
-            for cell in row.iter() {
-                row_string.push(*cell);
-                row_string.push(' ');
-            }
-            queue!(stdout, Print(row_string)).unwrap();
-        }
-        stdout.flush().unwrap();
+        // for (y, row) in map_display.iter().enumerate() {
+        //     queue!(
+        //         stdout,
+        //         MoveTo(offset_x_to_display, y as u16 + offset_y_to_display)
+        //     )
+        //     .unwrap();
+        //     let mut row_string = String::new();
+        //     for cell in row.iter() {
+        //         row_string.push(*cell);
+        //         row_string.push(' ');
+        //     }
+        //     queue!(stdout, Print(row_string)).unwrap();
+        // }
+        // stdout.flush().unwrap();
     }
-    execute!(stdout, Show, LeaveAlternateScreen,).unwrap();
+    // execute!(stdout, Show, LeaveAlternateScreen,).unwrap();
 }
