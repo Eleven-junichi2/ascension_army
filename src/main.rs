@@ -1,84 +1,15 @@
+// TODO: Entity management with id
+mod game;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode, KeyEventKind},
     execute, queue,
     style::Print,
-    terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use game::{Coordinate, DungeonFloor, Mob, Vec2d};
 use rand::{seq::SliceRandom, Rng};
 use std::io::{self, Read, Write};
-
-#[derive(Debug, PartialEq)]
-struct Coordinate {
-    x: usize,
-    y: usize,
-}
-
-enum FogOfWar {
-    Coordinate(Coordinate),
-}
-
-struct Mob {
-    tag: String,
-    pos: Coordinate,
-    strength: u8,
-    hp: u8,
-}
-
-impl Mob {
-    fn calc_combat(&self, other: &Mob) -> bool {
-        //! Return true if this mob wins the combat, false otherwise.
-        let mut rng = rand::thread_rng();
-        let result = rng.gen_ratio(
-            self.strength as u32,
-            (self.strength + other.strength) as u32,
-        );
-        result
-    }
-}
-
-struct Vec2d {
-    x: isize,
-    y: isize,
-}
-
-struct DungeonFloor {
-    height: usize,
-    width: usize,
-    fog_of_wars: Vec<FogOfWar>,
-    mobs: Vec<Mob>,
-}
-
-impl DungeonFloor {
-    fn fog_of_war_maskmap(&self) -> Vec<Vec<bool>> {
-        let mut maskmap = vec![vec![false; self.height]; self.height];
-        for fog_of_war in &self.fog_of_wars {
-            match fog_of_war {
-                FogOfWar::Coordinate(coord) => {
-                    maskmap[coord.y][coord.x] = true;
-                }
-            }
-        }
-        maskmap
-    }
-    fn mob_maskmap(&self, tags: &[&str]) -> Vec<Vec<bool>> {
-        let mut map = vec![vec![false; self.height]; self.height];
-        for mob in &self.mobs {
-            if tags.contains(&&mob.tag.as_str()) {
-                map[mob.pos.y][mob.pos.y] = true;
-            }
-        }
-        map
-    }
-    fn mob_index_by_tag(&self, tag: &str) -> Option<usize> {
-        for i in 0..self.mobs.len() {
-            if self.mobs[i].tag == tag {
-                return Some(i);
-            }
-        }
-        None
-    }
-}
 
 fn pause_for_input() {
     let _ = io::stdin().read(&mut [0u8]).unwrap();
@@ -159,15 +90,36 @@ mod tests {
     }
 }
 
+const GAME_NAME: &str = "Ascension Army";
+
 fn main() {
     let mut stdout = io::stdout();
-    println!("Ascension Army");
-    println!("Created by elprebit");
-    execute!(stdout, Print("- Press any key to start -")).unwrap();
+    queue!(stdout, Hide, EnterAlternateScreen).unwrap();
+    let (terminal_width, terminal_height) = terminal::size().unwrap();
+    queue!(
+        stdout,
+        MoveTo(
+            terminal_width / 2 - (GAME_NAME.len() / 2) as u16,
+            terminal_height / 2 - 1
+        ),
+        Print("Ascension Army\n")
+    )
+    .unwrap();
+    let show_how_to_start = "- Press any key to start -";
+    queue!(
+        stdout,
+        MoveTo(
+            terminal_width / 2 - (show_how_to_start.len() / 2) as u16,
+            terminal_height / 2
+        ),
+        Print(show_how_to_start)
+    )
+    .unwrap();
+    stdout.flush().unwrap();
     pause_for_input();
     let mut dungeon_floor = DungeonFloor {
-        height: 16,
-        width: 16,
+        height: 32,
+        width: 32,
         fog_of_wars: vec![],
         mobs: vec![],
     };
@@ -205,9 +157,7 @@ fn main() {
             hp: 1,
         });
     }
-
     let mut player_movement = Vec2d { x: 0, y: 0 };
-    execute!(stdout, Hide, EnterAlternateScreen).unwrap();
     'game: loop {
         let event = read().unwrap();
         // let mut enemy_map = dungeon_floor.mut_mob_map(&["enemy"]);
@@ -260,7 +210,7 @@ fn main() {
                     }
                 }
                 if let Some(player) = dungeon_floor.mob_index_by_tag("player") {
-                    let (player_mobs, other_mobs) = dungeon_floor.mobs.split_at_mut(player);
+                    let (player_mobs, other_mobs) = dungeon_floor.mobs.split_at_mut(player + 1);
                     let player = &mut player_mobs[0];
                     let mut new_x =
                         if let Some(new_x) = player.pos.x.checked_add_signed(player_movement.x) {
