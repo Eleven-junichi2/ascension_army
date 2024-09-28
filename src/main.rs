@@ -156,6 +156,7 @@ fn main() -> io::Result<()> {
         });
     }
     let mut player_movement = Vec2d { x: 0, y: 0 };
+    let mut messages = String::new();
     'game: loop {
         let event = read().unwrap();
         match event {
@@ -232,12 +233,15 @@ fn main() -> io::Result<()> {
                     for mob in other_mobs {
                         if mob.tag == "enemy" {
                             if mob.pos.x == new_x && mob.pos.y == new_y {
+                                
                                 if player.calc_combat(mob) {
                                     mob.hp -= 1;
+                                    messages = format!("Player attacked the enemy! the foe's hp is now {}", mob.hp);
                                 } else {
                                     player.hp -= 1;
                                 }
                                 if mob.hp > 0 {
+                                    messages = format!("Enemy attacked Player! Player's hp is now {}", player.hp);
                                     new_x = player.pos.x;
                                     new_y = player.pos.y;
                                 }
@@ -275,18 +279,21 @@ fn main() -> io::Result<()> {
         for i in dead.iter() {
             dungeon_floor.mobs.remove(*i);
         }
-        let offset_x_to_display = 0;
-        let offset_y_to_display = 2;
         terminal.draw(|frame| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(10), Constraint::Percentage(80), Constraint::Percentage(10)])
+                .constraints([
+                Constraint::Percentage(5),
+                Constraint::Percentage(5),
+                Constraint::Percentage(80),
+                Constraint::Percentage(10)])
                 .split(frame.area());
             let howtoplay = Paragraph::new(
-                "left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n"
+                "esc: exit game, left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n"
             ).alignment(Alignment::Center);
+            let message = Paragraph::new(messages.clone()).alignment(Alignment::Center);
             let mut lines = vec![];
-            for (y, row) in map_display.iter().enumerate() {
+            for row in map_display.iter() {
                 let mut row_string = String::new();
                 for cell in row.iter() {
                     row_string.push(*cell);
@@ -297,8 +304,9 @@ fn main() -> io::Result<()> {
             let map_widget = Paragraph::new(Text::from(lines)).alignment(Alignment::Center);
             let player_status = Paragraph::new(player_status_text).alignment(Alignment::Center);
             frame.render_widget(howtoplay, chunks[0]);
-            frame.render_widget(map_widget, chunks[1]);
-            frame.render_widget(player_status, chunks[2]);
+            frame.render_widget(message, chunks[1]);
+            frame.render_widget(map_widget, chunks[2]);
+            frame.render_widget(player_status, chunks[3]);
         })?;
     }
 }
