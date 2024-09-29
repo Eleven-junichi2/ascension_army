@@ -1,4 +1,5 @@
 // TODO: Entity management with id
+// TODO: Turn-based game loop
 mod game;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
