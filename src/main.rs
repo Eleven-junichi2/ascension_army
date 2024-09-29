@@ -98,6 +98,40 @@ mod tests {
     }
 }
 
+struct GameMessage {
+    logs: Vec<String>,
+    is_locking: bool,
+}
+
+impl GameMessage {
+    fn send(&mut self, msg: &str) -> bool {
+        if self.is_locking {
+            false
+        } else {
+            self.logs.push(msg.to_string());
+            true
+        }
+    }
+    fn show(&mut self) -> Option<String> {
+        self.logs.pop()
+    }
+    fn lock(&mut self) {
+        self.is_locking = true
+    }
+    fn unlock(&mut self) {
+        self.is_locking = false;
+    }
+}
+
+impl Default for GameMessage {
+    fn default() -> Self {
+        Self {
+            logs: vec![],
+            is_locking: false,
+        }
+    }
+}
+
 const GAME_NAME: &str = "Ascension Army";
 
 fn main() -> io::Result<()> {
@@ -156,7 +190,7 @@ fn main() -> io::Result<()> {
         });
     }
     let mut player_movement = Vec2d { x: 0, y: 0 };
-    let mut messages = String::new();
+    let mut game_msg = GameMessage::default();
     'game: loop {
         let event = read().unwrap();
         match event {
@@ -233,15 +267,20 @@ fn main() -> io::Result<()> {
                     for mob in other_mobs {
                         if mob.tag == "enemy" {
                             if mob.pos.x == new_x && mob.pos.y == new_y {
-                                
                                 if player.calc_combat(mob) {
                                     mob.hp -= 1;
-                                    messages = format!("Player attacked the enemy! the foe's hp is now {}", mob.hp);
+                                    game_msg.send(format!(
+                                        "Player attacked the enemy! the foe's hp is now {}",
+                                        mob.hp
+                                    ).as_str());
                                 } else {
                                     player.hp -= 1;
                                 }
                                 if mob.hp > 0 {
-                                    messages = format!("Enemy attacked Player! Player's hp is now {}", player.hp);
+                                    game_msg.send(format!(
+                                        "Enemy attacked Player! Player's hp is now {}",
+                                        player.hp
+                                    ).as_str());
                                     new_x = player.pos.x;
                                     new_y = player.pos.y;
                                 }
@@ -291,7 +330,17 @@ fn main() -> io::Result<()> {
             let howtoplay = Paragraph::new(
                 "esc: exit game, left: h, down: j, up: k, right: l, leftup: u, leftdown: b, rightup: y, rightdown: n"
             ).alignment(Alignment::Center);
-            let message = Paragraph::new(messages.clone()).alignment(Alignment::Center);
+            let game_msg_lines = if let Some(lines) = game_msg.logs.last_chunk::<2>() {
+                let mut lines_vec = vec![];
+                for msg in lines.iter() {
+                    lines_vec.push(Line::from(msg.clone()));
+                }
+                lines_vec
+            } else {
+                vec![Line::from(game_msg.logs.last().unwrap_or(&String::new()).to_string())]
+            };
+            // dbg!(&game_msg_lines);
+            let message = Paragraph::new(Text::from(game_msg_lines)).alignment(Alignment::Center);
             let mut lines = vec![];
             for row in map_display.iter() {
                 let mut row_string = String::new();
